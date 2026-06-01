@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PixelCut Pro Studio</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+font-family:Inter,Arial,sans-serif;
+background:#0b1020;
+color:white;
+overflow-x:hidden;
+}
+.hero{
+min-height:100vh;
+background:linear-gradient(135deg,#0b1020,#1e1b4b,#0f172a);
+display:flex;
+align-items:center;
+justify-content:center;
+flex-direction:column;
+text-align:center;
+padding:30px;
+}
+.hero h1{
+font-size:4rem;
+margin-bottom:15px;
+}
+.hero p{max-width:700px;opacity:.85}
+.btn{
+padding:14px 28px;
+border:none;
+border-radius:14px;
+cursor:pointer;
+background:linear-gradient(45deg,#7c3aed,#06b6d4);
+color:white;
+font-size:1rem;
+margin-top:20px;
+}
+.examples{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+gap:20px;
+width:100%;
+max-width:1100px;
+margin-top:40px;
+}
+.card{
+height:180px;
+background:rgba(255,255,255,.08);
+backdrop-filter:blur(10px);
+border-radius:20px;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:1.2rem;
+}
+#editor{
+display:none;
+padding:20px;
+min-height:100vh;
+background:#0f172a;
+}
+.topbar{
+display:flex;
+justify-content:space-between;
+align-items:center;
+padding:15px;
+background:rgba(255,255,255,.05);
+border-radius:16px;
+margin-bottom:20px;
+}
+.workspace{
+display:grid;
+grid-template-columns:280px 1fr;
+gap:20px;
+}
+.sidebar{
+background:rgba(255,255,255,.05);
+padding:20px;
+border-radius:20px;
+}
+.sidebar h3{margin-bottom:15px}
+.tool{
+width:100%;
+padding:12px;
+margin-bottom:10px;
+border:none;
+border-radius:12px;
+background:#1e293b;
+color:white;
+cursor:pointer;
+}
+.canvasWrap{
+background:rgba(255,255,255,.05);
+padding:20px;
+border-radius:20px;
+display:flex;
+justify-content:center;
+align-items:center;
+overflow:auto;
+}
+canvas{
+background:white;
+border-radius:12px;
+max-width:100%;
+}
+label{
+display:block;
+margin-top:10px;
+font-size:.9rem;
+}
+input[type=range]{
+width:100%;
+}
+@media(max-width:900px){
+.workspace{grid-template-columns:1fr}
+.hero h1{font-size:2.5rem}
+}
+</style>
+</head>
+<body>
+
+<section class="hero" id="home">
+<h1>PixelCut Pro</h1>
+<p>Professional Background Removal & Photo Editing Studio. Remove backgrounds manually, crop, erase, adjust colors and export transparent PNGs.</p>
+
+<div class="examples">
+<div class="card">Before → After</div>
+<div class="card">Transparent PNG</div>
+<div class="card">Quick Editing</div>
+</div>
+
+<button class="btn" onclick="openEditor()">Get Started</button>
+</section>
+
+<section id="editor">
+<div class="topbar">
+<h2>PixelCut Pro Studio</h2>
+<input type="file" id="upload" accept="image/*">
+</div>
+
+<div class="workspace">
+
+<div class="sidebar">
+<h3>Tools</h3>
+
+<button class="tool" onclick="setTool('erase')">Eraser</button>
+<button class="tool" onclick="cropCenter()">Crop Center</button>
+<button class="tool" onclick="rotateImage()">Rotate</button>
+<button class="tool" onclick="flipImage()">Flip</button>
+<button class="tool" onclick="downloadPNG()">Download PNG</button>
+
+<label>Brush Size</label>
+<input type="range" id="brush" min="5" max="80" value="25">
+
+<label>Brightness</label>
+<input type="range" id="brightness" min="50" max="150" value="100">
+
+<label>Contrast</label>
+<input type="range" id="contrast" min="50" max="150" value="100">
+
+<label>Saturation</label>
+<input type="range" id="saturation" min="0" max="200" value="100">
+
+</div>
+
+<div class="canvasWrap">
+<canvas id="canvas" width="900" height="600"></canvas>
+</div>
+
+</div>
+</section>
+
+<script>
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const upload=document.getElementById("upload");
+
+let img=new Image();
+let drawing=false;
+let tool="erase";
+let flipped=false;
+
+function openEditor(){
+document.getElementById("home").style.display="none";
+document.getElementById("editor").style.display="block";
+}
+
+function setTool(t){tool=t;}
+
+upload.addEventListener("change",e=>{
+const file=e.target.files[0];
+if(!file) return;
+
+const reader=new FileReader();
+
+reader.onload=function(ev){
+img.onload=function(){
+canvas.width=Math.min(img.width,1000);
+canvas.height=img.height*(canvas.width/img.width);
+render();
+}
+img.src=ev.target.result;
+}
+
+reader.readAsDataURL(file);
+});
+
+function render(){
+ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ctx.filter=`
+brightness(${brightness.value}%)
+contrast(${contrast.value}%)
+saturate(${saturation.value}%)
+`;
+
+if(flipped){
+ctx.save();
+ctx.scale(-1,1);
+ctx.drawImage(img,-canvas.width,0,canvas.width,canvas.height);
+ctx.restore();
+}else{
+ctx.drawImage(img,0,0,canvas.width,canvas.height);
+}
+
+ctx.filter="none";
+}
+
+brightness.oninput=render;
+contrast.oninput=render;
+saturation.oninput=render;
+
+canvas.addEventListener("mousedown",()=>drawing=true);
+canvas.addEventListener("mouseup",()=>drawing=false);
+canvas.addEventListener("mouseleave",()=>drawing=false);
+
+canvas.addEventListener("mousemove",e=>{
+if(!drawing || tool!=="erase") return;
+
+const rect=canvas.getBoundingClientRect();
+const x=e.clientX-rect.left;
+const y=e.clientY-rect.top;
+
+ctx.save();
+ctx.globalCompositeOperation="destination-out";
+ctx.beginPath();
+ctx.arc(x,y,brush.value,0,Math.PI*2);
+ctx.fill();
+ctx.restore();
+});
+
+function cropCenter(){
+const w=canvas.width*0.8;
+const h=canvas.height*0.8;
+const x=(canvas.width-w)/2;
+const y=(canvas.height-h)/2;
+
+const data=ctx.getImageData(x,y,w,h);
+
+canvas.width=w;
+canvas.height=h;
+
+ctx.putImageData(data,0,0);
+}
+
+function rotateImage(){
+const temp=document.createElement("canvas");
+const t=temp.getContext("2d");
+
+temp.width=canvas.height;
+temp.height=canvas.width;
+
+t.translate(temp.width/2,temp.height/2);
+t.rotate(Math.PI/2);
+t.drawImage(canvas,-canvas.width/2,-canvas.height/2);
+
+canvas.width=temp.width;
+canvas.height=temp.height;
+
+ctx.drawImage(temp,0,0);
+}
+
+function flipImage(){
+flipped=!flipped;
+render();
+}
+
+function downloadPNG(){
+const link=document.createElement("a");
+link.download="pixelcut-pro.png";
+link.href=canvas.toDataURL("image/png");
+link.click();
+}
+</script>
+
+</body>
+</html>
